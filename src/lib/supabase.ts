@@ -9,6 +9,73 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Image upload utilities
+const BUCKET_NAME = 'deal-images';
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+export interface UploadResult {
+  publicUrl: string;
+  path: string;
+}
+
+export const validateImageFile = (file: File): string | null => {
+  if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    return 'Please select a valid image file (JPEG, PNG, or WebP)';
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return 'File size must be less than 5MB';
+  }
+  
+  return null;
+};
+
+export const uploadDealImage = async (file: File, userId: string): Promise<UploadResult> => {
+  const validationError = validateImageFile(file);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  // Generate unique filename with user ID folder structure
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `${userId}/${fileName}`;
+
+  // Upload file to Supabase Storage
+  const { data, error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload failed: ${error.message}`);
+  }
+
+  // Get public URL
+  const { data: urlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(data.path);
+
+  return {
+    publicUrl: urlData.publicUrl,
+    path: data.path,
+  };
+};
+
+export const deleteDealImage = async (path: string): Promise<void> => {
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .remove([path]);
+
+  if (error) {
+    console.error('Error deleting image:', error.message);
+    // Don't throw error as this is often a cleanup operation
+  }
+};
+
 export type UserRole = 'customer' | 'merchant' | 'admin';
 
 export interface Profile {

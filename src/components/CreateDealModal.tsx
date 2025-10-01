@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { supabase, Deal } from '../lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { supabase, Deal, uploadDealImage, deleteDealImage, validateImageFile } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface CreateDealModalProps {
   merchantId: string;
@@ -10,6 +11,9 @@ interface CreateDealModalProps {
 }
 
 export default function CreateDealModal({ merchantId, deal, onClose, onSuccess }: CreateDealModalProps) {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,6 +25,10 @@ export default function CreateDealModal({ merchantId, deal, onClose, onSuccess }
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePath, setImagePath] = useState<string>(''); // Store the storage path for cleanup
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +65,66 @@ export default function CreateDealModal({ merchantId, deal, onClose, onSuccess }
       return Math.round(((original - discounted) / original) * 100);
     }
     return 0;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError('');
+    setSelectedFile(file);
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+  };
+
+  const handleUploadImage = async () => {
+    if (!selectedFile || !user) return;
+
+    setUploadingImage(true);
+    setError('');
+
+    try {
+      const result = await uploadDealImage(selectedFile, user.id);
+      setFormData({ ...formData, imageUrl: result.publicUrl });
+      setImagePath(result.path);
+      setSelectedFile(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (imagePath) {
+      await deleteDealImage(imagePath);
+    }
+    
+    // Clean up preview URL
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    
+    setFormData({ ...formData, imageUrl: '' });
+    setImagePreview('');
+    setSelectedFile(null);
+    setImagePath('');
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -259,15 +327,102 @@ export default function CreateDealModal({ merchantId, deal, onClose, onSuccess }
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Image URL (Optional)
+              Deal Image (Optional)
             </label>
+            
+            {/* Hidden file input */}
             <input
-              type="url"
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-              placeholder="https://example.com/image.jpg"
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
             />
+            
+            {/* Current image display */}
+            {formData.imageUrl && (
+              <div className="relative mb-3 max-w-xs">
+                <img
+                  src={formData.imageUrl}
+                  alt="Deal preview"
+                  className="w-full h-32 object-cover rounded-lg border border-slate-300"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+            
+            {/* File preview (for newly selected files) */}
+            {selectedFile && imagePreview && (
+              <div className="mb-3">
+                <div className="relative max-w-xs">
+                  <img
+                    src={imagePreview}
+                    alt="Selected file preview"
+                    className="w-full h-32 object-cover rounded-lg border border-slate-300"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+                    <div className="text-white text-center">
+                      <ImageIcon size={24} className="mx-auto mb-1" />
+                      <p className="text-xs">Ready to upload</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={handleUploadImage}
+                    disabled={uploadingImage}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                  >
+                    {uploadingImage ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setImagePreview('');
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="px-3 py-1 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Upload button */}
+            {!selectedFile && !formData.imageUrl && (
+              <button
+                type="button"
+                onClick={triggerFileSelect}
+                className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:border-slate-400 hover:text-slate-600 transition"
+              >
+                <Upload size={32} className="mb-2" />
+                <p className="text-sm font-medium">Click to upload image</p>
+                <p className="text-xs text-slate-400">PNG, JPG, WebP up to 5MB</p>
+              </button>
+            )}
+            
+            {/* Add new image button (when image already exists) */}
+            {(formData.imageUrl && !selectedFile) && (
+              <button
+                type="button"
+                onClick={triggerFileSelect}
+                className="mt-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition flex items-center gap-2"
+              >
+                <Upload size={16} />
+                Change Image
+              </button>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
