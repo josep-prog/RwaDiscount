@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - RwaDiscount</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .offline-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        
+        h1 {
+            color: #1f2937;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        p {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .retry-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .retry-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .features {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        
+        .features h3 {
+            color: #1f2937;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .features ul {
+            color: #6b7280;
+            font-size: 0.875rem;
+            list-style: none;
+            padding: 0;
+        }
+        
+        .features li {
+            margin-bottom: 0.25rem;
+            padding-left: 1rem;
+            position: relative;
+        }
+        
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">
+            📡
+        </div>
+        <h1>You're Offline</h1>
+        <p>
+            It looks like you're not connected to the internet. Don't worry, you can still browse 
+            previously viewed deals when you get back online!
+        </p>
+        
+        <button class="retry-btn" onclick="retryConnection()">
+            Try Again
+        </button>
+        
+        <div class="features">
+            <h3>When you're back online:</h3>
+            <ul>
+                <li>Browse the latest deals</li>
+                <li>Sign in to your account</li>
+                <li>Save deals for later</li>
+                <li>Contact merchants</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        function retryConnection() {
+            // Check if we're back online
+            if (navigator.onLine) {
+                window.location.reload();
+            } else {
+                // Try to navigate to the main page
+                window.location.href = '/';
+            }
+        }
+        
+        // Listen for online event
+        window.addEventListener('online', () => {
+            // Auto-reload when connection is restored
+            window.location.reload();
+        });
+        
+        // Update UI based on connection status
+        function updateStatus() {
+            const retryBtn = document.querySelector('.retry-btn');
+            if (navigator.onLine) {
+                retryBtn.textContent = 'You\'re Back Online! Reload';
+                retryBtn.style.background = '#10b981';
+            } else {
+                retryBtn.textContent = 'Try Again';
+                retryBtn.style.background = '#2563eb';
+            }
+        }
+        
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        
+        // Initial status check
+        updateStatus();
+    </script>
+</body>
+</html>
