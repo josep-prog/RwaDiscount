@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, MapPin, Tag, TrendingUp, Clock, Bookmark } from 'lucide-react';
+import { Search, Tag, TrendingUp, Bookmark } from 'lucide-react';
 import { supabase, Deal, MerchantProfile } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 import DealCard from '../components/DealCard';
 import Header from '../components/Header';
 
@@ -10,7 +9,7 @@ type DealWithMerchant = Deal & {
 };
 
 export default function Home() {
-  const { user } = useAuth();
+  // Note: viewing deals is public; auth only needed for like/save
   const [deals, setDeals] = useState<DealWithMerchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

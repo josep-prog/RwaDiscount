@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { MapPin, Clock, Bookmark, ThumbsUp, ThumbsDown, Eye } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { MapPin, Clock, Bookmark, ThumbsUp, ThumbsDown, Eye, Heart, ShoppingBag } from 'lucide-react';
 import { supabase, Deal, MerchantProfile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import DealDetailsModal, { DealWithMerchant as DealWithMerchantType } from './DealDetailsModal';
 
 type DealWithMerchant = Deal & {
   merchant_profiles: MerchantProfile;
@@ -16,6 +17,20 @@ export default function DealCard({ deal }: DealCardProps) {
   const [isSaved, setIsSaved] = useState(false);
   const [feedback, setFeedback] = useState<boolean | null>(null);
   const [savesCount, setSavesCount] = useState(deal.saves_count);
+  const [likesCount, setLikesCount] = useState<number>(0);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      const { count } = await supabase
+        .from('deal_feedback')
+        .select('*', { count: 'exact', head: true })
+        .eq('deal_id', deal.id)
+        .eq('is_positive', true);
+      setLikesCount(count || 0);
+    };
+    init();
+  }, [deal.id]);
 
   const daysLeft = Math.ceil(
     (new Date(deal.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
@@ -55,6 +70,7 @@ export default function DealCard({ deal }: DealCardProps) {
       .from('deals')
       .update({ views_count: deal.views_count + 1 })
       .eq('id', deal.id);
+    setDetailsOpen(true);
   };
 
   return (
@@ -62,7 +78,7 @@ export default function DealCard({ deal }: DealCardProps) {
       className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer"
       onClick={handleView}
     >
-      <div className="relative h-48 bg-slate-200">
+      <div className="relative bg-slate-200 aspect-[16/9]">
         {deal.image_url ? (
           <img
             src={deal.image_url}
@@ -122,59 +138,85 @@ export default function DealCard({ deal }: DealCardProps) {
           </div>
         </div>
 
-        {user && (
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFeedback(true);
-                }}
-                className={`p-2 rounded-lg transition ${
-                  feedback === true
-                    ? 'bg-green-100 text-green-600'
-                    : 'text-slate-400 hover:bg-slate-100'
-                }`}
-              >
-                <ThumbsUp size={18} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFeedback(false);
-                }}
-                className={`p-2 rounded-lg transition ${
-                  feedback === false
-                    ? 'bg-red-100 text-red-600'
-                    : 'text-slate-400 hover:bg-slate-100'
-                }`}
-              >
-                <ThumbsDown size={18} />
-              </button>
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            {user && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFeedback(true);
+                  }}
+                  className={`p-2 rounded-lg transition ${
+                    feedback === true
+                      ? 'bg-green-100 text-green-600'
+                      : 'text-slate-400 hover:bg-slate-100'
+                  }`}
+                >
+                  <ThumbsUp size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFeedback(false);
+                  }}
+                  className={`p-2 rounded-lg transition ${
+                    feedback === false
+                      ? 'bg-red-100 text-red-600'
+                      : 'text-slate-400 hover:bg-slate-100'
+                  }`}
+                >
+                  <ThumbsDown size={18} />
+                </button>
+              </>
+            )}
+            <div className="flex items-center gap-1 text-slate-500 text-sm">
+              <Heart size={16} className="text-pink-500" />
+              <span>{likesCount}</span>
             </div>
+          </div>
 
+          <div className="flex items-center gap-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleSave();
+                setDetailsOpen(true);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                isSaved
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
             >
-              <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
-              <span>{savesCount}</span>
+              <ShoppingBag size={16} /> Find / Buy
             </button>
+
+            {user && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSave();
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
+                  isSaved
+                    ? 'bg-blue-100 text-blue-600'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
+                <span>{savesCount}</span>
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="flex items-center gap-1 text-xs text-slate-500 mt-3">
           <Eye size={14} />
           <span>{deal.views_count} views</span>
         </div>
       </div>
+
+      <DealDetailsModal
+        open={detailsOpen}
+        deal={deal as unknown as DealWithMerchantType}
+        onClose={() => setDetailsOpen(false)}
+      />
     </div>
   );
 }

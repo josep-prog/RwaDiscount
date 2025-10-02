@@ -12,6 +12,7 @@ export default function MerchantDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [likesByDeal, setLikesByDeal] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (user) {
@@ -44,6 +45,18 @@ export default function MerchantDashboard() {
 
     if (data) {
       setDeals(data);
+      // fetch likes count per deal
+      const entries = await Promise.all(
+        data.map(async (d) => {
+          const { count } = await supabase
+            .from('deal_feedback')
+            .select('*', { count: 'exact', head: true })
+            .eq('deal_id', d.id)
+            .eq('is_positive', true);
+          return [d.id, count || 0] as const;
+        })
+      );
+      setLikesByDeal(Object.fromEntries(entries));
     }
   };
 
@@ -139,6 +152,7 @@ export default function MerchantDashboard() {
 
   const totalViews = deals.reduce((sum, deal) => sum + deal.views_count, 0);
   const totalSaves = deals.reduce((sum, deal) => sum + deal.saves_count, 0);
+  const totalLikes = deals.reduce((sum, d) => sum + (likesByDeal[d.id] || 0), 0);
   const activeDeals = deals.filter((d) => d.status === 'approved' && new Date(d.end_date) > new Date()).length;
 
   return (
@@ -184,6 +198,14 @@ export default function MerchantDashboard() {
               <Bookmark size={20} className="text-purple-600" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{totalSaves}</p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-600 text-sm">Total Likes</span>
+              <Plus size={20} className="text-pink-600" />
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{totalLikes}</p>
           </div>
         </div>
 
@@ -233,6 +255,9 @@ export default function MerchantDashboard() {
                           <span className="flex items-center gap-1">
                             <Bookmark size={14} />
                             {deal.saves_count}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            ❤️ {likesByDeal[deal.id] || 0}
                           </span>
                           <span>Ends: {new Date(deal.end_date).toLocaleDateString()}</span>
                         </div>

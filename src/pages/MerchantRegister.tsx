@@ -7,7 +7,7 @@ import Header from '../components/Header';
 
 export default function MerchantRegister() {
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     businessName: '',
     businessDescription: '',

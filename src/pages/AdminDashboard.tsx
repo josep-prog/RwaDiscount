@@ -18,7 +18,6 @@ export default function AdminDashboard() {
     totalCustomers: 0,
     activeDeals: 0,
   });
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'merchants' | 'deals'>('merchants');
 
   useEffect(() => {
@@ -46,7 +45,6 @@ export default function AdminDashboard() {
 
     setPendingMerchants(pendingMerchantsRes.data || []);
     setPendingDeals((pendingDealsRes.data as DealWithMerchant[]) || []);
-    setLoading(false);
   };
 
   const handleMerchantApproval = async (merchantId: string, approved: boolean, reason?: string) => {
