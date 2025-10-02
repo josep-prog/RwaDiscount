@@ -51,9 +51,14 @@ export default function MerchantRegister() {
     });
 
     if (insertError) {
-      setError(insertError.message);
+      // Provide a clearer hint for the common FK issue
+      const message = insertError.message.includes('foreign key constraint')
+        ? 'Your account profile is missing in the database. Please sign out and sign back in to recreate your profile. If the issue persists, an admin should run the profile backfill migration.'
+        : insertError.message;
+      setError(message);
       setLoading(false);
     } else {
+      // Update role only if a profile row exists (silently ignore if none)
       await supabase.from('profiles').update({ role: 'merchant' }).eq('id', user.id);
       await refreshProfile();
       navigate('/merchant');
