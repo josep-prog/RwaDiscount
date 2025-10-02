@@ -1,9 +1,8 @@
-const CACHE_NAME = 'rwadiscount-v1';
+const CACHE_NAME = 'rwadiscount-v2';
 const OFFLINE_URL = '/offline.html';
 
-// Resources to cache on install
+// Resources to cache on install (do NOT pre-cache '/')
 const CACHE_RESOURCES = [
-  '/',
   '/offline.html',
   '/manifest.json',
   '/icons/icon-192x192.png',
@@ -48,58 +47,49 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
-  
+
+  // Network-first for navigations (index.html) so deploys update immediately
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
   // Skip Chrome extension requests
   if (event.request.url.startsWith('chrome-extension://')) return;
-  
-  // Skip Supabase API requests (always use network for auth/data)
+
+  // Always use network for Supabase calls
   if (event.request.url.includes('supabase.co')) {
     event.respondWith(fetch(event.request));
     return;
   }
-  
+
+  // Cache-first for static assets
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Return cached version if available
-        if (cachedResponse) {
-          console.log('[SW] Serving from cache:', event.request.url);
-          return cachedResponse;
-        }
-        
-        // Otherwise, fetch from network
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            
-            // Clone the response for caching
-            const responseToCache = response.clone();
-            
-            // Cache static assets (JS, CSS, images)
-            if (shouldCache(event.request.url)) {
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  console.log('[SW] Caching new resource:', event.request.url);
-                  cache.put(event.request, responseToCache);
-                });
-            }
-            
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request)
+        .then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
-          })
-          .catch(() => {
-            // If both cache and network fail, show offline page for navigation requests
-            if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
-            }
-          });
-      })
+          }
+          const responseToCache = response.clone();
+          if (shouldCache(event.request.url)) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => undefined);
+    })
   );
 });
 

@@ -84,7 +84,11 @@ export default function DealCard({ deal }: DealCardProps) {
   return (
     <div
       className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer"
-      onClick={handleView}
+      onClick={() => {
+        // Prevent re-opening when modal is already open (e.g., clicks bubbling from modal)
+        if (detailsOpen) return;
+        handleView();
+      }}
     >
       <div className="relative bg-slate-200 aspect-[16/9]">
         {deal.image_url ? (

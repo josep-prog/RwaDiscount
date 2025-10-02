@@ -93,7 +93,15 @@ export default function DealDetailsModal({ open, deal, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        // Prevent clicks inside the modal from bubbling to underlying card
+        e.stopPropagation();
+      }}
+    >
       <div className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-xl">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">{deal.title}</h3>
