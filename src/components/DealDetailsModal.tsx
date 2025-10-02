@@ -108,6 +108,7 @@ export default function DealDetailsModal({ open, deal, onClose }: Props) {
               <img
                 src={deal.image_url}
                 alt={deal.title}
+                loading="lazy"
                 className="max-h-[70vh] object-contain transition-transform"
                 style={{ transform: `scale(${zoom})` }}
               />

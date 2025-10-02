@@ -22,12 +22,16 @@ export default function DealCard({ deal }: DealCardProps) {
 
   useEffect(() => {
     const init = async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from('deal_feedback')
         .select('*', { count: 'exact', head: true })
         .eq('deal_id', deal.id)
         .eq('is_positive', true);
-      setLikesCount(count || 0);
+      if (!error) {
+        setLikesCount(count || 0);
+      } else {
+        setLikesCount(0);
+      }
     };
     init();
   }, [deal.id]);
@@ -66,10 +70,14 @@ export default function DealCard({ deal }: DealCardProps) {
   };
 
   const handleView = async () => {
-    await supabase
-      .from('deals')
-      .update({ views_count: deal.views_count + 1 })
-      .eq('id', deal.id);
+    try {
+      // Use RPC so anonymous users can increment views safely via RLS-secured function
+      await supabase.rpc('increment_deal_views', { p_deal_id: deal.id });
+      // Optimistically update UI
+      deal.views_count = (deal.views_count || 0) + 1;
+    } catch (e) {
+      // ignore errors; still open details
+    }
     setDetailsOpen(true);
   };
 
@@ -83,6 +91,7 @@ export default function DealCard({ deal }: DealCardProps) {
           <img
             src={deal.image_url}
             alt={deal.title}
+            loading="lazy"
             className="w-full h-full object-cover"
           />
         ) : (
