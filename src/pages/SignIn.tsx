@@ -19,10 +19,22 @@ export default function SignIn() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(formData.email, formData.password);
+    // Normalize inputs to avoid common mistakes
+    const email = formData.email.trim();
+    const password = formData.password; // do not trim passwords, user may intend spaces
+
+    const { error } = await signIn(email, password);
 
     if (error) {
-      setError(error.message);
+      // Improve messaging for common Supabase GoTrue errors
+      const msg = error.message || '';
+      if (/Invalid login credentials/i.test(msg)) {
+        setError('Invalid email or password. Please try again or reset your password.');
+      } else if (/Email not confirmed/i.test(msg)) {
+        setError('Your email is not confirmed. Please check your inbox for the confirmation link or request a new one.');
+      } else {
+        setError(msg || 'Failed to sign in. Please try again.');
+      }
       setLoading(false);
     } else {
       navigate('/');
